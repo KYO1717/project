@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Time Reversal Roguelike</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- 플레이어 상태 바 -->
+    <header id="status-bar">
+      <div id="floor-info">층: <span id="current-floor">1</span> / 3</div>
+      <div id="hp-info">HP: <span id="current-hp">100</span> / 100</div>
+      <div id="relics-info">유물: <span id="relics-list">없음</span></div>
+    </header>
+
+    <!-- 노드 진행 지도 -->
+    <section id="map-section">
+      <h3>지역 진행도 (현재 노드: <span id="current-node">0</span> / 5)</h3>
+      <div id="node-map">
+        <div class="node" data-step="1">1. 탐험</div>
+        <div class="node" data-step="2">2. 탐험</div>
+        <div class="node" data-step="3">3. 탐험</div>
+        <div class="node" data-step="4">4. 탐험</div>
+        <div class="node boss" data-step="5">5. 보스</div>
+      </div>
+    </section>
+
+    <!-- 메인 이벤트 display 영역 -->
+    <main id="event-section">
+      <h2 id="event-title">여정을 시작합니다</h2>
+      <p id="event-description">아래 버튼을 눌러 다음 노드로 이동하세요.</p>
+      <div id="choices-container">
+        <button id="next-node-btn" onclick="enterNextNode()">다음 노드로 진입</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
