@@ -4,21 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reverse: Era Log</title>
-  <!-- 구글 폰트 적용 (Cinzel & Noto Serif KR) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <!-- 클래식 오버레이 효과 -->
   <div class="vintage-overlay"></div>
   
   <div id="game-container">
-    <!-- 상태 표시 헤더 -->
     <header id="status-bar">
       <div class="status-item">
-        <span class="label">ERA / FLOOR</span>
+        <span class="label">FLOOR</span>
         <span class="value"><span id="current-floor">1</span><span class="sub">/3</span></span>
       </div>
       <div class="status-divider"></div>
@@ -33,45 +30,41 @@
       </div>
     </header>
 
-    <!-- 노드 진행 지도 -->
     <section id="map-section">
-      <div class="map-title">CHRONO MAP (NODE <span id="current-node">0</span>/5)</div>
+      <div class="map-title">1층 경로 (원하는 노드를 클릭하세요)</div>
       <div id="node-map">
-        <div class="node" data-step="1">
+        <div class="node clickable" data-step="1" data-type="전투">
           <span class="node-num">I</span>
-          <span class="node-label">Inquiry</span>
+          <span class="node-label">전투</span>
         </div>
-        <div class="node" data-step="2">
+        <div class="node" data-step="2" data-type="사건">
           <span class="node-num">II</span>
-          <span class="node-label">Inquiry</span>
+          <span class="node-label">사건</span>
         </div>
-        <div class="node" data-step="3">
+        <div class="node" data-step="3" data-type="보상">
           <span class="node-num">III</span>
-          <span class="node-label">Inquiry</span>
+          <span class="node-label">보상</span>
         </div>
-        <div class="node" data-step="4">
+        <div class="node" data-step="4" data-type="전투">
           <span class="node-num">IV</span>
-          <span class="node-label">Inquiry</span>
+          <span class="node-label">전투</span>
         </div>
-        <div class="node boss" data-step="5">
+        <div class="node boss" data-step="5" data-type="보스">
           <span class="node-num">V</span>
-          <span class="node-label">Anomaly</span>
+          <span class="node-label">보스</span>
         </div>
       </div>
     </section>
 
-    <!-- 메인 이벤트 display 영역 -->
     <main id="event-section">
       <div class="event-header">
-        <span class="event-badge" id="event-badge">PHASE START</span>
-        <h2 id="event-title">폭풍우 속으로의 진입</h2>
+        <span class="event-badge" id="event-badge">STAGE START</span>
+        <h2 id="event-title">1층 탐험 시작</h2>
       </div>
       <hr class="gold-divider">
-      <p id="event-description">시간의 바퀴가 거꾸로 돌기 시작합니다. 신비로운 현상 속에서 앞으로 나아갈 준비를 하십시오.</p>
+      <p id="event-description">위 지도에서 'I. 전투' 노드를 클릭하여 진입하세요.</p>
       
-      <div id="choices-container">
-        <button id="next-node-btn" class="gold-btn" onclick="enterNextNode()">➤ 탐험 시작하기</button>
-      </div>
+      <div id="choices-container"></div>
     </main>
   </div>
 

@@ -1,89 +1,130 @@
-// .env 대신 클라이언트 테스트 환경용 변수 설정
-const GEMINI_API_KEY = process.env.gemini_api || "YOUR_API_KEY_HERE";
+// 브라우저에서 직접 테스트 시 키를 따옴표 안에 작성하세요.
+const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
 
-// 게임 상태 객체
 const gameState = {
   floor: 1,
   node: 0,
-  maxFloors: 3,
-  nodesPerFloor: 5,
+  maxNodes: 5,
   hp: 100,
   maxHp: 100,
   relics: []
 };
 
-// UI 상태 업데이트 함수
+// 페이지 로드 시 노드 클릭 이벤트 바인딩
+document.addEventListener("DOMContentLoaded", () => {
+  setupNodeEvents();
+  updateUI();
+});
+
+function setupNodeEvents() {
+  const nodes = document.querySelectorAll(".node");
+  nodes.forEach(node => {
+    node.addEventListener("click", () => {
+      const step = parseInt(node.dataset.step);
+      // 순서대로만 진입 가능 (현재 노드 + 1 위치만 클릭 허용)
+      if (step === gameState.node + 1) {
+        enterNode(step, node.dataset.type);
+      }
+    });
+  });
+}
+
 function updateUI() {
   document.getElementById("current-floor").innerText = gameState.floor;
   document.getElementById("current-hp").innerText = gameState.hp;
-  document.getElementById("current-node").innerText = gameState.node;
   document.getElementById("relics-list").innerText = 
     gameState.relics.length > 0 ? gameState.relics.join(", ") : "None";
 
-  // 지도 노드 UI 업데이트
+  // 지도 노드 클릭 가능 상태 조절
   const nodes = document.querySelectorAll(".node");
-  nodes.forEach((el, idx) => {
-    const step = idx + 1;
-    el.classList.remove("active", "cleared");
+  nodes.forEach(node => {
+    const step = parseInt(node.dataset.step);
+    node.classList.remove("active", "cleared", "clickable");
+    
     if (step < gameState.node) {
-      el.classList.add("cleared");
+      node.classList.add("cleared");
     } else if (step === gameState.node) {
-      el.classList.add("active");
+      node.classList.add("active");
+    } else if (step === gameState.node + 1) {
+      node.classList.add("clickable");
     }
   });
 }
 
-// 다음 노드로 진입
-async function enterNextNode() {
-  if (gameState.node < gameState.nodesPerFloor) {
-    gameState.node++;
-  } else {
-    // 다음 층으로 이동
-    if (gameState.floor < gameState.maxFloors) {
-      gameState.floor++;
-      gameState.node = 1;
-    } else {
-      showEndGame("여정 완수", "모든 시공간의 왜곡을 극복하고 시대를 지켜냈습니다.");
-      return;
-    }
-  }
-
+function enterNode(step, type) {
+  gameState.node = step;
   updateUI();
 
-  // 5번째 노드는 보스(Anomaly), 그 외는 일반 미스테리 이벤트
-  if (gameState.node === 5) {
-    fetchLLMEvent("보스");
-  } else {
-    fetchLLMEvent("일반");
+  // 노드 유형별 로직 분기 (전투 / 사건 / 보상 / 보스)
+  if (type === "전투" || type === "보스") {
+    handleCombatNode(type);
+  } else if (type === "사건") {
+    fetchLLMEvent("사건");
+  } else if (type === "보상") {
+    fetchLLMEvent("보상");
   }
 }
 
-// Gemini API 호출 (JSON 포맷 응답 요청)
-async function fetchLLMEvent(type) {
+// 1) 전투 및 보스 노드 처리 (로직 처리)
+function handleCombatNode(type) {
+  const isBoss = type === "보스";
+  const enemyName = isBoss ? "시공간의 환영 (보스)" : "경계의 왜곡체";
+  const damage = isBoss ? 25 : 10;
+
+  document.getElementById("event-badge").innerText = isBoss ? "BOSS COMBAT" : "COMBAT";
+  document.getElementById("event-title").innerText = `${enemyName}와의 전투`;
+  document.getElementById("event-description").innerText = 
+    `적과 조우했습니다! 적을 격퇴하려면 대가를 치러야 합니다. (예상 피해: ${damage} HP)`;
+
+  const container = document.getElementById("choices-container");
+  container.innerHTML = `
+    <button class="gold-btn" onclick="resolveCombat(${damage}, '${enemyName}')">➤ 교전하기 (HP -${damage})</button>
+  `;
+}
+
+function resolveCombat(damage, enemyName) {
+  gameState.hp = Math.max(0, gameState.hp - damage);
+  updateUI();
+
+  if (gameState.hp <= 0) {
+    showEndGame("사망", "체력이 모두 소진되었습니다.");
+    return;
+  }
+
+  document.getElementById("event-title").innerText = "전투 승리";
+  document.getElementById("event-description").innerText = `${enemyName}을(를) 격퇴했습니다! 다음 노드로 이동할 수 있습니다.`;
+  
+  const container = document.getElementById("choices-container");
+  container.innerHTML = gameState.node === gameState.maxNodes 
+    ? `<button class="gold-btn" onclick="showEndGame('1층 클리어', '1층의 모든 시공간을 정복했습니다!')">➤ 층 완료하기</button>`
+    : `<p style="color: var(--text-muted); font-size: 0.85rem;">위 지도에서 다음 노드를 클릭하세요.</p>`;
+}
+
+// 2) 사건/보상 노드 처리 (Gemini API 연동)
+async function fetchLLMEvent(nodeType) {
   const eventTitle = document.getElementById("event-title");
   const eventDesc = document.getElementById("event-description");
   const eventBadge = document.getElementById("event-badge");
-  const choicesContainer = document.getElementById("choices-container");
+  const container = document.getElementById("choices-container");
 
-  eventBadge.innerText = type === "보스" ? "ANOMALY PHENOMENON" : "MYSTERIOUS EVENT";
-  eventTitle.innerText = "현상을 관측하는 중...";
-  eventDesc.innerText = "시공간의 왜곡 속에서 무언가가 다가옵니다...";
-  choicesContainer.innerHTML = "";
+  eventBadge.innerText = nodeType === "보상" ? "ARTIFACT" : "EVENT";
+  eventTitle.innerText = "관측 중...";
+  eventDesc.innerText = "현상을 일으키는 문장을 불러오고 있습니다...";
+  container.innerHTML = "";
 
   const prompt = `
-    당신은 리버스 1999 스타일의 미스테리 로그라이크 게임 마스터입니다.
-    현재 플레이어 위치: ${gameState.floor}층 ${gameState.node}번째 노드 (${type} 인카운터).
-    현재 체력: ${gameState.hp}/${gameState.maxHp}.
+    당신은 리버스 1999 감성의 로그라이크 게임 마스터입니다.
+    현재 위치: 1층 ${gameState.node}번째 노드 (${nodeType} 노드).
     
-    신비롭고 고풍스러우며 기묘한 분위기의 텍스트 이벤트와 선택지 2개를 생성하세요.
+    ${nodeType} 유형에 맞는 미스테리한 텍스트 이벤트와 선택지 2개를 생성하세요.
     반드시 아래 JSON 포맷으로만 응답해야 합니다.
 
     {
-      "title": "이벤트 제목",
-      "description": "상황 설명 (2~3문장, 시적이고 미스테리한 톤)",
+      "title": "이벤트/보상 이름",
+      "description": "상황 및 묘사 문장 (2문장)",
       "choices": [
-        { "text": "선택지 1 내용", "hpChange": -10, "relic": "녹슨 태엽 시계", "result": "선택 후 결과 문장" },
-        { "text": "선택지 2 내용", "hpChange": 10, "relic": null, "result": "선택 후 결과 문장" }
+        { "text": "선택지 1", "hpChange": -5, "relic": "${nodeType === '보상' ? '녹슨 태엽시계' : null}", "result": "결과 문장" },
+        { "text": "선택지 2", "hpChange": 5, "relic": null, "result": "결과 문장" }
       ]
     }
   `;
@@ -103,36 +144,27 @@ async function fetchLLMEvent(type) {
 
     const data = await response.json();
     const eventData = JSON.parse(data.candidates[0].content.parts[0].text);
-    renderEvent(eventData);
+    
+    eventTitle.innerText = eventData.title;
+    eventDesc.innerText = eventData.description;
+
+    container.innerHTML = "";
+    eventData.choices.forEach(choice => {
+      const btn = document.createElement("button");
+      btn.className = "gold-btn";
+      btn.innerText = `➤ ${choice.text}`;
+      btn.onclick = () => handleChoice(choice);
+      container.appendChild(btn);
+    });
 
   } catch (err) {
     console.error(err);
-    eventTitle.innerText = "시공간 균열 발생";
-    eventDesc.innerText = "알 수 없는 영향으로 현상을 해석할 수 없습니다.";
-    choicesContainer.innerHTML = `<button class="gold-btn" onclick="enterNextNode()">➤ 다음으로 강제 이동</button>`;
+    eventTitle.innerText = "현상 관측 실패";
+    eventDesc.innerText = "API 키가 올바르지 않거나 오류가 발생했습니다. 직접 키를 설정했는지 확인하세요.";
   }
 }
 
-// 이벤트 및 선택지 버튼 렌더링
-function renderEvent(data) {
-  document.getElementById("event-title").innerText = data.title;
-  document.getElementById("event-description").innerText = data.description;
-
-  const choicesContainer = document.getElementById("choices-container");
-  choicesContainer.innerHTML = "";
-
-  data.choices.forEach(choice => {
-    const btn = document.createElement("button");
-    btn.className = "gold-btn";
-    btn.innerText = `➤ ${choice.text}`;
-    btn.onclick = () => handleChoice(choice);
-    choicesContainer.appendChild(btn);
-  });
-}
-
-// 플레이어 선택 결과 처리
 function handleChoice(choice) {
-  // HP 변경 및 유물 획득 반영
   gameState.hp = Math.min(gameState.maxHp, Math.max(0, gameState.hp + choice.hpChange));
   if (choice.relic && !gameState.relics.includes(choice.relic)) {
     gameState.relics.push(choice.relic);
@@ -140,26 +172,20 @@ function handleChoice(choice) {
 
   updateUI();
 
-  // 사망 검사
   if (gameState.hp <= 0) {
-    showEndGame("여정의 종말", "체력이 모두 소진되어 폭풍우 속으로 사라졌습니다...");
+    showEndGame("사망", "폭풍우 속으로 사라졌습니다.");
     return;
   }
 
-  // 결과 출력 및 다음 이동 버튼 제공
   document.getElementById("event-description").innerText = choice.result;
-  const choicesContainer = document.getElementById("choices-container");
-  choicesContainer.innerHTML = `<button class="gold-btn" onclick="enterNextNode()">➤ 다음 노드로 이동</button>`;
+  document.getElementById("choices-container").innerHTML = 
+    `<p style="color: var(--text-muted); font-size: 0.85rem;">위 지도에서 다음 노드를 클릭하세요.</p>`;
 }
 
-// 게임 엔딩/사망 화면
 function showEndGame(title, message) {
   document.getElementById("event-badge").innerText = "FINALE";
   document.getElementById("event-title").innerText = title;
   document.getElementById("event-description").innerText = message;
   document.getElementById("choices-container").innerHTML = 
-    `<button class="gold-btn" onclick="location.reload()">➤ 다시 시작하기</button>`;
+    `<button class="gold-btn" onclick="location.reload()">➤ 처음부터 다시하기</button>`;
 }
-
-// 페이지 로드 시 initial UI 초기화
-updateUI();
